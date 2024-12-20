@@ -1,0 +1,700 @@
+# Computational Assignment 10/01/2025
+# Bas Knoors (i6297276), Valentin Suruceanu, 
+# Julie van Breukelen, Szymon Nieckula
+
+library(dplyr)
+library(MASS)
+
+#-------------------------------------------------------------------------------
+#PART 1: Statistical Analysis of the Data
+#-------------------------------------------------------------------------------
+
+#PLAYING AROUND WITH DATA-------------------------------------------------------
+
+#All series can be treated as independent and identically distributed
+#Filter data
+type1_data <- ScanRecords[ScanRecords$PatientType == "Type 1", ]
+type2_data <- ScanRecords[ScanRecords$PatientType == "Type 2", ]
+
+#DURATION------------------------------------------------------
+
+#TYPE 1
+#Histogram for Type 1 patients
+hist(type1_data$Duration, 
+     main = "Histogram of MRI Duration for Type 1 Patients", 
+     xlab = "Duration (hours)", 
+     col = "lightblue", 
+     breaks = 20)
+
+# --> Looks like Normal Distribution(parameters unknown)
+
+#Overlaying a Normal distribution CDF over Histogram by using mean and st dev.
+mean_duration1 <- mean(type1_data$Duration)
+sd_duration1 <- sd(type1_data$Duration)
+
+# Overlay normal distribution curve
+hist(type1_data$Duration, probability = TRUE, 
+     main = "Histogram with Normal Fit", 
+     xlab = "Duration (hours)", col = "lightgreen")
+curve(dnorm(x, mean = mean_duration1, sd = sd_duration1), 
+      col = "blue", lwd = 2, add = TRUE)
+
+
+#TYPE 2
+#Histogram for Type 2 patients
+hist(type2_data$Duration, 
+     main = "Histogram of MRI Duration for Type 2 Patients", 
+     xlab = "Duration (hours)", 
+     col = "lightgreen", 
+     breaks = 20)
+
+# --> Do not really know what kind of distribution this resembles: Normal/ Logistic?
+
+#Overlaying a Normal/Logistic CDF over Histogram by using mean and st dev.
+mean_duration2 <- mean(type2_data$Duration)
+mean_duration2
+sd_duration2 <- sd(type2_data$Duration)
+sd_duration2
+
+# Plot normalized histogram (Express density i.o. frequency)
+hist(type2_data$Duration, probability = TRUE, 
+     main = "Histogram with Normal and Logistic Fits", 
+     xlab = "Duration (hours)", 
+     col = "lightgreen", 
+     breaks = 20)
+
+# Overlay Normal distribution curve
+curve(dnorm(x, mean = mean_duration2, sd = sd_duration2), 
+      col = "blue", lwd = 2, add = TRUE)
+
+# Overlay Logistic distribution curve
+curve(dlogis(x, location = mean_duration2, scale = sd_duration2 / sqrt(3)), 
+      col = "red", lwd = 2, add = TRUE)
+
+# Add a legend for clarity
+legend("topright", legend = c("Normal Fit", "Logistic Fit"), 
+       col = c("blue", "red"), lwd = 2)
+
+
+
+#Box-plot of Duration per patient type
+boxplot(Duration ~ PatientType, data = ScanRecords, 
+        main = "Scan Duration by Patient Type", 
+        xlab = "Patient Type", ylab = "Duration", col = "lightgreen")
+
+
+#NUMBER OF PATIENTS ARRIVING---------------------------------------
+
+#TYPE 1
+
+#ARRIVAL TIMES
+
+# Calculate daily arrival counts for Type 1
+type1_data <- ScanRecords[ScanRecords$PatientType == "Type 1", ]
+daily_counts <- type1_data %>%
+  group_by(Date) %>%
+  summarise(Count = n())
+
+# Estimate the Poisson parameter (mean number of arrivals per day)
+lambda <- mean(daily_counts$Count)
+
+# Plot histogram of daily arrivals (as counts)
+hist(daily_counts$Count, probability = TRUE, 
+     main = "Daily Arrival Counts (Type 1) with Poisson Fit", 
+     xlab = "Number of Arrivals", 
+     col = "lightblue", 
+     breaks = max(daily_counts$Count) - min(daily_counts$Count) + 1)
+
+# Overlay Poisson distribution curve
+x_vals <- seq(0, max(daily_counts$Count), by = 1)  # Possible arrival counts
+pois_probs <- dpois(x_vals, lambda = lambda)  # Poisson probabilities
+points(x_vals, pois_probs, col = "red", type = "h", lwd = 2)  # Add as lines
+
+#INTER-ARRIVAL TIMES
+
+# Sort and calculate inter-arrival times for Type 1
+type1_data <- type1_data %>% arrange(Date, Time)
+type1_data <- type1_data %>%
+  group_by(Date) %>%
+  mutate(Interarrival = c(NA, diff(Time)))  # Calculate inter-arrival times
+
+# Remove NA values
+interarrival_times <- na.omit(type1_data$Interarrival)
+
+# Estimate the rate parameter (lambda) for the exponential distribution
+lambda_exp <- 1 / mean(interarrival_times)  # Rate = 1 / mean of inter-arrival times
+
+# Plot histogram of inter-arrival times (as density)
+hist(interarrival_times, probability = TRUE, 
+     main = "Inter-arrival Times (Type 1) with Exponential Fit", 
+     xlab = "Time Between Arrivals (hours)", 
+     col = "lightgreen", 
+     breaks = 20)
+
+# Overlay Exponential distribution curve
+curve(dexp(x, rate = lambda_exp), col = "blue", lwd = 2, add = TRUE)
+
+#TYPE 2
+
+#ARRIVAL TIMES
+
+# Calculate daily arrival counts for Type 2 patients
+type2_data <- ScanRecords[ScanRecords$PatientType == "Type 2", ]
+daily_counts <- type2_data %>%
+  group_by(Date) %>%
+  summarise(Count = n())
+
+# Estimate the Poisson parameter (mean number of arrivals per day)
+lambda2 <- mean(daily_counts$Count)
+
+# Plot histogram of daily arrivals (scaled as density for comparison)
+hist(daily_counts$Count, probability = TRUE, 
+     main = "Daily Arrival Counts (Type 2) ", 
+     xlab = "Number of Arrivals", 
+     col = "lightblue", 
+     breaks = max(daily_counts$Count) - min(daily_counts$Count) + 1)
+
+# Overlay Poisson distribution curve
+x_vals <- seq(0, max(daily_counts$Count), by = 1)  # Possible arrival counts
+pois_probs <- dpois(x_vals, lambda = lambda2)  # Poisson probabilities
+points(x_vals, pois_probs, col = "red", type = "h", lwd = 2)  # Add as lines
+
+#INTER-ARRIVAL TIMES
+
+# Sort and calculate inter-arrival times for Type 2
+type2_data <- type2_data %>% arrange(Date, Time)
+type2_data <- type2_data %>%
+  group_by(Date) %>%
+  mutate(Interarrival = c(NA, diff(Time)))  # Calculate inter-arrival times
+
+# Remove NA values
+interarrival_times <- na.omit(type2_data$Interarrival)
+
+# Estimate parameters for Normal distribution
+mean_interarrival <- mean(interarrival_times)
+sd_interarrival <- sd(interarrival_times)
+
+# Estimate parameters for Gamma distribution
+gamma_fit <- fitdistr(interarrival_times, densfun = "gamma")  # Fit gamma distribution
+shape <- gamma_fit$estimate["shape"]  # Gamma shape parameter
+rate <- gamma_fit$estimate["rate"]    # Gamma rate parameter
+
+# Plot histogram of inter-arrival times (as density)
+hist(interarrival_times, probability = TRUE, 
+     main = "Inter-arrival Times (Type 2) with Normal and Gamma Fits", 
+     xlab = "Time Between Arrivals (hours)", 
+     col = "lightgreen", 
+     breaks = 20)
+
+# Overlay Normal distribution curve
+curve(dnorm(x, mean = mean_interarrival, sd = sd_interarrival), 
+      col = "blue", lwd = 2, add = TRUE)
+
+# Overlay Gamma distribution curve
+curve(dgamma(x, shape = shape, rate = rate), 
+      col = "red", lwd = 2, add = TRUE)
+
+# Add a legend
+legend("topright", legend = c("Normal Fit", "Gamma Fit"), 
+       col = c("blue", "red"), lwd = 2)
+
+
+#PARAMETER ESTIMATION WITH UNCERTAINTY USING BOOTSTRAP--------------------------
+
+# Daily arrival counts for Type 1 patients
+daily_counts1 <- type1_data %>%
+  group_by(Date) %>%
+  summarise(Count = n())  # Summarize the number of arrivals per day
+
+# Daily arrival counts for Type 2 patients
+daily_counts2 <- type2_data %>%
+  group_by(Date) %>%
+  summarise(Count = n())  # Summarize the number of arrivals per day
+
+# Correcting a specific inter-arrival time in Type 1
+type1_data$Interarrival[20] <- 0.02  
+type1_data$Interarrival[32] <- 0.57 
+type1_data$Interarrival[49] <- 0.86  
+type1_data$Interarrival[65] <- 0.84  
+type1_data$Interarrival[86] <- 0.62  
+type1_data$Interarrival[99] <- 0.85  
+type1_data$Interarrival[112] <- 0.25   
+type1_data$Interarrival[126] <- 0.16  
+type1_data$Interarrival[141] <- 1.07  
+type1_data$Interarrival[151] <- 0.98  
+type1_data$Interarrival[169] <- 0.27  
+type1_data$Interarrival[185] <- 0.31  
+type1_data$Interarrival[208] <- 0.47  
+type1_data$Interarrival[224] <- 0.72  
+type1_data$Interarrival[235] <- 0.34  
+type1_data$Interarrival[247] <- 0.36  
+type1_data$Interarrival[269] <- 0.76  
+type1_data$Interarrival[289] <- 0.95  
+type1_data$Interarrival[308] <- 0.38 
+type1_data$Interarrival[322] <- 0.57 
+type1_data$Interarrival[345] <- 0.25
+type1_data$Interarrival[363] <- 0.77
+  
+# Correcting a specific inter-arrival time in Type 2
+type2_data$Interarrival[11] <- 0.94  
+type2_data$Interarrival[23] <- 0.87  
+type2_data$Interarrival[34] <- 0.58 
+type2_data$Interarrival[46] <- 1.18 
+type2_data$Interarrival[56] <- 1.13  
+type2_data$Interarrival[66] <- 1.14 
+type2_data$Interarrival[75] <- 0.57  
+type2_data$Interarrival[86] <- 0.51 
+type2_data$Interarrival[97] <- 0.82
+type2_data$Interarrival[106] <- 0.74 
+type2_data$Interarrival[115] <- 0.50  
+type2_data$Interarrival[125] <- 1.08  
+type2_data$Interarrival[136] <- 0.76  
+type2_data$Interarrival[149] <- 0.76  
+type2_data$Interarrival[158] <- 0.86  
+type2_data$Interarrival[169] <- 1.13  
+type2_data$Interarrival[179] <- 0.95  
+type2_data$Interarrival[188] <- 1.29  
+type2_data$Interarrival[198] <- 0.73  
+type2_data$Interarrival[210] <- 0.29
+type2_data$Interarrival[219] <- 0.95 
+type2_data$Interarrival[231] <- 0.55 
+  
+# Inter-arrival times for Type 1 patients
+type1_data <- type1_data %>% arrange(Date, Time)  # Ensure data is ordered by Date and Time
+type1_data <- type1_data %>%
+  group_by(Date) %>%
+  mutate(Interarrival = c(NA, diff(Time)))  # Calculate inter-arrival times
+interarrival_times1 <- na.omit(type1_data$Interarrival)
+
+# Inter-arrival times for Type 2 patients
+type2_data <- type2_data %>% arrange(Date, Time)  # Ensure data is ordered by Date and Time
+type2_data <- type2_data %>%
+  group_by(Date) %>%
+  mutate(Interarrival = c(NA, diff(Time)))  # Calculate inter-arrival times
+interarrival_times2 <- na.omit(type2_data$Interarrival)
+
+#1) TYPE 1 PATIENTS
+
+#1.1) DURATION of MRI scans ~ Normal(mu, sigma)
+
+set.seed(123)  # For reproducibility
+
+# Extract MRI durations for Type 1 patients
+durations_type1 <- type1_data$Duration
+
+# POINT ESTIMATES
+mean_duration1 <- mean(durations_type1)  # Point estimate for mean
+sd_duration1 <- sd(durations_type1)      # Point estimate for standard deviation
+
+cat("Point Estimate for Mean Duration:", mean_duration1, "\n")
+cat("Point Estimate for SD Duration:", sd_duration1, "\n")
+
+# BOOTSTRAP PROCEDURE
+B <- 1000  # Number of bootstrap samples
+bootstrap_means <- numeric(B)  # Storage for bootstrap means
+bootstrap_sds <- numeric(B)    # Storage for bootstrap SDs
+
+# Perform parametric bootstrap
+for (i in 1:B) {
+  # Generate bootstrap sample
+  bootstrap_sample <- rnorm(length(durations_type1), mean = mean_duration1, sd = sd_duration1)
+  
+  # Calculate statistics for bootstrap sample
+  bootstrap_means[i] <- mean(bootstrap_sample)
+  bootstrap_sds[i] <- sd(bootstrap_sample)
+}
+
+# CONFIDENCE INTERVALS
+mean_ci <- quantile(bootstrap_means, c(0.025, 0.975))  # CI for mean
+sd_ci <- quantile(bootstrap_sds, c(0.025, 0.975))      # CI for standard deviation
+
+# RESULTS
+cat("Bootstrap Mean Estimate (95% CI):", mean_ci, "\n")
+cat("Bootstrap SD Estimate (95% CI):", sd_ci, "\n")
+
+# VISUALIZATION
+# Histogram for bootstrap means
+hist(bootstrap_means, main = "Bootstrap Distribution of Means", 
+     xlab = "Mean Duration", col = "lightblue", breaks = 20)
+abline(v = mean_duration1, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
+abline(v = mean_ci, col = "red", lwd = 2, lty = 2)             # CI lines (both sides)
+
+# Add legend
+legend("topright", legend = c("Point Estimate", "95% CI"), 
+       col = c("darkblue", "red"), lwd = 2, lty = c(1, 2))
+
+# Pause for next plot
+dev.new()
+
+# Histogram for bootstrap standard deviations
+hist(bootstrap_sds, main = "Bootstrap Distribution of SDs", 
+     xlab = "Standard Deviation", col = "lightgreen", breaks = 20)
+abline(v = sd_duration1, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
+abline(v = sd_ci, col = "red", lwd = 2, lty = 2)             # CI lines (both sides)
+
+# Add legend
+legend("topright", legend = c("Point Estimate", "95% CI"), 
+       col = c("darkblue", "red"), lwd = 2, lty = c(1, 2))
+
+
+#1.2) ARRIVAL TIMES of patients ~ Poisson(lambda)
+
+set.seed(123)  # For reproducibility
+
+# Extract daily arrival counts for Type 1 patients
+daily_arrivals1 <- daily_counts1$Count
+
+# POINT ESTIMATE: Estimate the Poisson parameter (lambda)
+lambda_est1 <- mean(daily_arrivals1)
+
+cat("Point Estimate for Lambda (Mean Daily Arrivals - Type 1):", lambda_est1, "\n")
+
+# BOOTSTRAP PROCEDURE
+B <- 1000
+bootstrap_lambdas1 <- numeric(B)
+
+for (i in 1:B) {
+  bootstrap_sample <- rpois(length(daily_arrivals1), lambda = lambda_est1)
+  bootstrap_lambdas1[i] <- mean(bootstrap_sample)
+}
+
+lambda_ci1 <- quantile(bootstrap_lambdas1, c(0.025, 0.975))
+cat("95% Confidence Interval for Lambda (Type 1):", lambda_ci1, "\n")
+
+# VISUALIZATION
+par(mfrow = c(1, 1))  # Single plot layout
+
+# Histogram for bootstrap lambdas
+hist(bootstrap_lambdas1, main = "Bootstrap Distribution of Lambda", 
+     xlab = "Lambda (Mean Daily Arrivals)", col = "lightblue", breaks = 20)
+
+# Add the point estimate and CI lines
+abline(v = lambda_est1, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
+abline(v = lambda_ci1[1], col = "red", lwd = 2, lty = 2)     # Left CI
+abline(v = lambda_ci1[2], col = "red", lwd = 2, lty = 2)     # Right CI
+
+# Add legend
+legend("topright", legend = c("Point Estimate", "95% CI"), 
+       col = c("darkblue", "red"), lwd = 2, lty = c(1, 2))
+
+
+#1.3) INTER-ARRIVAL TIMES of patients ~ Exponential(lambda)
+
+set.seed(123)  # For reproducibility
+
+# Extract inter-arrival times for Type 1 patients
+lambda_est_interarrival1 <- 1 / mean(interarrival_times1)
+
+cat("Point Estimate for Lambda (Inter-Arrival Rate - Type 1):", lambda_est_interarrival1, "\n")
+
+# BOOTSTRAP PROCEDURE
+bootstrap_lambdas_interarrival1 <- numeric(B)
+
+for (i in 1:B) {
+  bootstrap_sample <- rexp(length(interarrival_times1), rate = lambda_est_interarrival1)
+  bootstrap_lambdas_interarrival1[i] <- 1 / mean(bootstrap_sample)
+}
+
+lambda_ci_interarrival1 <- quantile(bootstrap_lambdas_interarrival1, c(0.025, 0.975))
+cat("95% Confidence Interval for Lambda (Inter-Arrival Rate - Type 1):", lambda_ci_interarrival1, "\n")
+
+
+# VISUALIZATION
+par(mfrow = c(1, 1))  # Single plot layout
+
+# Histogram for bootstrap lambdas
+hist(bootstrap_lambdas_interarrival1, main = "Bootstrap Distribution of Lambda (Inter-Arrival Times)", 
+     xlab = "Lambda (Rate Parameter)", col = "lightgreen", breaks = 20)
+
+# Add the point estimate and CI lines
+abline(v = lambda_est_interarrival1, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
+abline(v = lambda_ci_interarrival1[1], col = "red", lwd = 2, lty = 2)     # Left CI
+abline(v = lambda_ci_interarrival1[2], col = "red", lwd = 2, lty = 2)     # Right CI
+
+# Add legend
+legend("topright", legend = c("Point Estimate", "95% CI"), 
+       col = c("darkblue", "red"), lwd = 2, lty = c(1, 2))
+
+
+#2) TYPE 2 PATIENTS: we do not know the distributions of the 3 variables
+
+##-->OPTION 1: assume distribution based on plots/histograms
+##-->OPTION 2: plug-in principle
+
+# WE USE PLUG-IN PRINCIPLE
+
+#2.1) DURATION of MRI scans
+
+set.seed(123)  # For reproducibility
+
+# Extract durations for Type 2 patients
+durations_type2 <- type2_data$Duration
+
+# POINT ESTIMATES
+mean_duration2 <- mean(durations_type2)  # Point estimate for mean
+sd_duration2 <- sd(durations_type2)      # Point estimate for standard deviation
+
+cat("Point Estimate for Mean Duration:", mean_duration2, "\n")
+cat("Point Estimate for Standard Deviation:", sd_duration2, "\n")
+
+# BOOTSTRAP PROCEDURE
+B <- 1000  # Number of bootstrap samples
+bootstrap_means <- numeric(B)  # Storage for bootstrap means
+bootstrap_sds <- numeric(B)    # Storage for bootstrap standard deviations
+
+for (i in 1:B) {
+  # Resample the data with replacement
+  bootstrap_sample <- sample(durations_type2, replace = TRUE)
+  
+  # Compute the mean and standard deviation for the bootstrap sample
+  bootstrap_means[i] <- mean(bootstrap_sample)
+  bootstrap_sds[i] <- sd(bootstrap_sample)
+}
+
+# CONFIDENCE INTERVALS
+mean_ci <- quantile(bootstrap_means, c(0.025, 0.975))  # 95% CI for mean
+sd_ci <- quantile(bootstrap_sds, c(0.025, 0.975))      # 95% CI for standard deviation
+
+cat("95% Confidence Interval for Mean:", mean_ci, "\n")
+cat("95% Confidence Interval for Standard Deviation:", sd_ci, "\n")
+
+# VISUALIZATION: Plot bootstrap means
+hist(bootstrap_means, main = "Bootstrap Distribution of Means (Type 2)", 
+     xlab = "Mean Duration", col = "lightblue", breaks = 20)
+abline(v = mean_duration2, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
+abline(v = mean_ci[1], col = "red", lwd = 2, lty = 2)           # CI lower bound
+abline(v = mean_ci[2], col = "red", lwd = 2, lty = 2)           # CI upper bound
+legend("topright", legend = c("Point Estimate", "95% CI"), 
+       col = c("darkblue", "red"), lwd = 2, lty = c(1, 2), cex = 0.8)
+
+# VISUALIZATION: Plot bootstrap standard deviations
+hist(bootstrap_sds, main = "Bootstrap Distribution of SDs (Type 2)", 
+     xlab = "Standard Deviation", col = "lightgreen", breaks = 20)
+abline(v = sd_duration2, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
+abline(v = sd_ci[1], col = "red", lwd = 2, lty = 2)           # CI lower bound
+abline(v = sd_ci[2], col = "red", lwd = 2, lty = 2)           # CI upper bound
+legend("topright", legend = c("Point Estimate", "95% CI"), 
+       col = c("darkblue", "red"), lwd = 2, lty = c(1, 2), cex = 0.8)
+
+
+#2.2) ARRIVAL TIMES of MRI scans
+
+set.seed(123)  # For reproducibility
+
+# Extract daily arrival counts for Type 2 patients
+daily_arrivals2 <- daily_counts2$Count
+
+# POINT ESTIMATES
+mean_arrivals2 <- mean(daily_arrivals2)  # Point estimate for mean
+sd_arrivals2 <- sd(daily_arrivals2)      # Point estimate for standard deviation
+
+cat("Point Estimate for Mean Arrivals (Type 2):", mean_arrivals2, "\n")
+cat("Point Estimate for Standard Deviation of Arrivals (Type 2):", sd_arrivals2, "\n")
+
+# BOOTSTRAP PROCEDURE
+B <- 1000  # Number of bootstrap samples
+bootstrap_means <- numeric(B)  # Storage for bootstrap means
+bootstrap_sds <- numeric(B)    # Storage for bootstrap standard deviations
+
+for (i in 1:B) {
+  # Resample the data with replacement
+  bootstrap_sample <- sample(daily_arrivals2, replace = TRUE)
+  
+  # Compute the mean and standard deviation for the bootstrap sample
+  bootstrap_means[i] <- mean(bootstrap_sample)
+  bootstrap_sds[i] <- sd(bootstrap_sample)
+}
+
+# CONFIDENCE INTERVALS
+mean_ci <- quantile(bootstrap_means, c(0.025, 0.975))  # 95% CI for mean
+sd_ci <- quantile(bootstrap_sds, c(0.025, 0.975))      # 95% CI for standard deviation
+
+cat("95% Confidence Interval for Mean Arrivals (Type 2):", mean_ci, "\n")
+cat("95% Confidence Interval for Standard Deviation of Arrivals (Type 2):", sd_ci, "\n")
+
+# VISUALIZATION: Plot bootstrap means
+hist(bootstrap_means, main = "Bootstrap Distribution of Mean Arrivals (Type 2)", 
+     xlab = "Mean Number of Arrivals", col = "lightblue", breaks = 20)
+abline(v = mean_arrivals2, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
+abline(v = mean_ci[1], col = "red", lwd = 2, lty = 2)           # CI lower bound
+abline(v = mean_ci[2], col = "red", lwd = 2, lty = 2)           # CI upper bound
+legend("topright", legend = c("Point Estimate", "95% CI"), 
+       col = c("darkblue", "red"), lwd = 2, lty = c(1, 2), cex = 0.8)
+
+# VISUALIZATION: Plot bootstrap standard deviations
+hist(bootstrap_sds, main = "Bootstrap Distribution of SDs of Arrivals (Type 2)", 
+     xlab = "Standard Deviation of Arrivals", col = "lightgreen", breaks = 20)
+abline(v = sd_arrivals2, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
+abline(v = sd_ci[1], col = "red", lwd = 2, lty = 2)           # CI lower bound
+abline(v = sd_ci[2], col = "red", lwd = 2, lty = 2)           # CI upper bound
+legend("topright", legend = c("Point Estimate", "95% CI"), 
+       col = c("darkblue", "red"), lwd = 2, lty = c(1, 2), cex = 0.8)
+
+#2.3) INTER-ARRIVAL TIMES of MRI scans
+
+set.seed(123)  # For reproducibility
+
+# Extract inter-arrival times for Type 2 patients
+interarrival_times2 <- interarrival_times2  # Already calculated earlier
+
+# POINT ESTIMATES
+mean_interarrival2 <- mean(interarrival_times2)  # Point estimate for mean
+sd_interarrival2 <- sd(interarrival_times2)      # Point estimate for standard deviation
+
+cat("Point Estimate for Mean Inter-Arrival Time (Type 2):", mean_interarrival2, "\n")
+cat("Point Estimate for Standard Deviation of Inter-Arrival Times (Type 2):", sd_interarrival2, "\n")
+
+# BOOTSTRAP PROCEDURE
+B <- 1000  # Number of bootstrap samples
+bootstrap_means <- numeric(B)  # Storage for bootstrap means
+bootstrap_sds <- numeric(B)    # Storage for bootstrap standard deviations
+
+for (i in 1:B) {
+  # Resample the data with replacement
+  bootstrap_sample <- sample(interarrival_times2, replace = TRUE)
+  
+  # Compute the mean and standard deviation for the bootstrap sample
+  bootstrap_means[i] <- mean(bootstrap_sample)
+  bootstrap_sds[i] <- sd(bootstrap_sample)
+}
+
+# CONFIDENCE INTERVALS
+mean_ci <- quantile(bootstrap_means, c(0.025, 0.975))  # 95% CI for mean
+sd_ci <- quantile(bootstrap_sds, c(0.025, 0.975))      # 95% CI for standard deviation
+
+cat("95% Confidence Interval for Mean Inter-Arrival Time (Type 2):", mean_ci, "\n")
+cat("95% Confidence Interval for Standard Deviation of Inter-Arrival Times (Type 2):", sd_ci, "\n")
+
+# VISUALIZATION: Plot bootstrap means
+hist(bootstrap_means, main = "Bootstrap Distribution of Mean Inter-Arrival Times (Type 2)", 
+     xlab = "Mean Inter-Arrival Time", col = "lightblue", breaks = 20)
+abline(v = mean_interarrival2, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
+abline(v = mean_ci[1], col = "red", lwd = 2, lty = 2)               # CI lower bound
+abline(v = mean_ci[2], col = "red", lwd = 2, lty = 2)               # CI upper bound
+legend("topright", legend = c("Point Estimate", "95% CI"), 
+       col = c("darkblue", "red"), lwd = 2, lty = c(1, 2), cex = 0.8)
+
+# VISUALIZATION: Plot bootstrap standard deviations
+hist(bootstrap_sds, main = "Bootstrap Distribution of SDs of Inter-Arrival Times (Type 2)", 
+     xlab = "Standard Deviation of Inter-Arrival Times", col = "lightgreen", breaks = 20)
+abline(v = sd_interarrival2, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
+abline(v = sd_ci[1], col = "red", lwd = 2, lty = 2)               # CI lower bound
+abline(v = sd_ci[2], col = "red", lwd = 2, lty = 2)               # CI upper bound
+legend("topright", legend = c("Point Estimate", "95% CI"), 
+       col = c("darkblue", "red"), lwd = 2, lty = c(1, 2), cex = 0.8)
+
+
+
+
+#MONTE CARLO SIMULATION TO BACK UP RESULTS OF TYPE 2 PATIENTS-------------------
+
+#1) DURATION
+set.seed(123)  # For reproducibility
+
+# Observed data: durations for Type 2 patients
+durations_type2 <- type2_data$Duration
+
+# MC Simulation parameters
+n <- length(durations_type2)  # Sample size
+B <- 100000  # Number of Monte Carlo simulations
+
+# Storage for simulated means and SDs
+mc_means <- numeric(B)
+mc_sds <- numeric(B)
+
+# Monte Carlo Simulation
+for (i in 1:B) {
+  simulated_data <- sample(durations_type2, n, replace = TRUE)  # Resample from observed data
+  mc_means[i] <- mean(simulated_data)  # Calculate mean
+  mc_sds[i] <- sd(simulated_data)      # Calculate standard deviation
+}
+
+# Confidence Intervals
+mean_ci <- quantile(mc_means, c(0.025, 0.975))
+sd_ci <- quantile(mc_sds, c(0.025, 0.975))
+
+cat("95% CI for Mean Duration (MC):", mean_ci, "\n")
+cat("95% CI for SD Duration (MC):", sd_ci, "\n")
+
+# Visualization
+hist(mc_means, main = "MC Distribution of Means (Type 2 Duration)", 
+     xlab = "Mean Duration", col = "lightblue", breaks = 20)
+abline(v = mean_ci, col = "red", lty = 2)  # CI bounds
+
+hist(mc_sds, main = "MC Distribution of SDs (Type 2 Duration)", 
+     xlab = "Standard Deviation", col = "lightgreen", breaks = 20)
+abline(v = sd_ci, col = "red", lty = 2)  # CI bounds
+
+#2) ARRIVAL TIMES
+set.seed(123)
+
+# Observed data: daily arrival counts for Type 2 patients
+daily_arrivals2 <- daily_counts2$Count
+
+# MC Simulation parameters
+n <- length(daily_arrivals2)  # Sample size
+B <- 100000  # Number of Monte Carlo simulations
+
+# Storage for simulated means and SDs
+mc_means <- numeric(B)
+mc_sds <- numeric(B)
+
+# Monte Carlo Simulation
+for (i in 1:B) {
+  simulated_data <- sample(daily_arrivals2, n, replace = TRUE)  # Resample from observed data
+  mc_means[i] <- mean(simulated_data)  # Calculate mean
+  mc_sds[i] <- sd(simulated_data)      # Calculate standard deviation
+}
+
+# Confidence Intervals
+mean_ci <- quantile(mc_means, c(0.025, 0.975))
+sd_ci <- quantile(mc_sds, c(0.025, 0.975))
+
+cat("95% CI for Mean Daily Arrivals (MC):", mean_ci, "\n")
+cat("95% CI for SD of Daily Arrivals (MC):", sd_ci, "\n")
+
+# Visualization
+hist(mc_means, main = "MC Distribution of Means (Type 2 Daily Arrivals)", 
+     xlab = "Mean Daily Arrivals", col = "lightblue", breaks = 20)
+abline(v = mean_ci, col = "red", lty = 2)  # CI bounds
+
+hist(mc_sds, main = "MC Distribution of SDs (Type 2 Daily Arrivals)", 
+     xlab = "Standard Deviation", col = "lightgreen", breaks = 20)
+abline(v = sd_ci, col = "red", lty = 2)  # CI bounds
+
+#3) INTER-ARRIVAL TIMES
+set.seed(123)
+
+# Observed data: inter-arrival times for Type 2 patients
+interarrival_times2 <- interarrival_times2  # Assuming this is already prepared
+
+# MC Simulation parameters
+n <- length(interarrival_times2)  # Sample size
+B <- 100000  # Number of Monte Carlo simulations
+
+# Storage for simulated means and SDs
+mc_means <- numeric(B)
+mc_sds <- numeric(B)
+
+# Monte Carlo Simulation
+for (i in 1:B) {
+  simulated_data <- sample(interarrival_times2, n, replace = TRUE)  # Resample from observed data
+  mc_means[i] <- mean(simulated_data)  # Calculate mean
+  mc_sds[i] <- sd(simulated_data)      # Calculate standard deviation
+}
+
+# Confidence Intervals
+mean_ci <- quantile(mc_means, c(0.025, 0.975))
+sd_ci <- quantile(mc_sds, c(0.025, 0.975))
+
+cat("95% CI for Mean Inter-Arrival Time (MC):", mean_ci, "\n")
+cat("95% CI for SD of Inter-Arrival Times (MC):", sd_ci, "\n")
+
+# Visualization
+hist(mc_means, main = "MC Distribution of Means (Type 2 Inter-Arrival Times)", 
+     xlab = "Mean Inter-Arrival Time", col = "lightblue", breaks = 20)
+abline(v = mean_ci, col = "red", lty = 2)  # CI bounds
+
+hist(mc_sds, main = "MC Distribution of SDs (Type 2 Inter-Arrival Times)", 
+     xlab = "Standard Deviation", col = "lightgreen", breaks = 20)
+abline(v = sd_ci, col = "red", lty = 2)  # CI bounds
