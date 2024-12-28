@@ -1,6 +1,6 @@
 library(ggplot2)
 
-#for own use: data <- read.csv('C:/Users/justj/Downloads/ScanRecords.csv')
+
 data <- read.csv('ScanRecords.csv')
 data_type1 <- data[data$PatientType == 'Type 1', ]
 data_type2 <- data[data$PatientType == 'Type 2', ]
