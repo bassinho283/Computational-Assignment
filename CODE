@@ -2,6 +2,7 @@
 # Bas Knoors (i6297276), Valentin Suruceanu, 
 # Julie van Breukelen, Szymon Nieckula
 
+
 library(dplyr)
 library(MASS)
 
@@ -211,6 +212,13 @@ daily_counts2 <- type2_data %>%
   group_by(Date) %>%
   summarise(Count = n())  # Summarize the number of arrivals per day
 
+  
+# Inter-arrival times for Type 1 patients
+type1_data <- type1_data %>% arrange(Date, Time)  # Ensure data is ordered by Date and Time
+type1_data <- type1_data %>%
+  group_by(Date) %>%
+  mutate(Interarrival = c(NA, diff(Time)))  # Calculate inter-arrival times
+
 # Correcting a specific inter-arrival time in Type 1
 type1_data$Interarrival[20] <- 0.02  
 type1_data$Interarrival[32] <- 0.57 
@@ -234,7 +242,15 @@ type1_data$Interarrival[308] <- 0.38
 type1_data$Interarrival[322] <- 0.57 
 type1_data$Interarrival[345] <- 0.25
 type1_data$Interarrival[363] <- 0.77
-  
+
+interarrival_times1 <- na.omit(type1_data$Interarrival)
+
+# Inter-arrival times for Type 2 patients
+type2_data <- type2_data %>% arrange(Date, Time)  # Ensure data is ordered by Date and Time
+type2_data <- type2_data %>%
+  group_by(Date) %>%
+  mutate(Interarrival = c(NA, diff(Time)))  # Calculate inter-arrival times
+
 # Correcting a specific inter-arrival time in Type 2
 type2_data$Interarrival[11] <- 0.94  
 type2_data$Interarrival[23] <- 0.87  
@@ -258,19 +274,7 @@ type2_data$Interarrival[198] <- 0.73
 type2_data$Interarrival[210] <- 0.29
 type2_data$Interarrival[219] <- 0.95 
 type2_data$Interarrival[231] <- 0.55 
-  
-# Inter-arrival times for Type 1 patients
-type1_data <- type1_data %>% arrange(Date, Time)  # Ensure data is ordered by Date and Time
-type1_data <- type1_data %>%
-  group_by(Date) %>%
-  mutate(Interarrival = c(NA, diff(Time)))  # Calculate inter-arrival times
-interarrival_times1 <- na.omit(type1_data$Interarrival)
 
-# Inter-arrival times for Type 2 patients
-type2_data <- type2_data %>% arrange(Date, Time)  # Ensure data is ordered by Date and Time
-type2_data <- type2_data %>%
-  group_by(Date) %>%
-  mutate(Interarrival = c(NA, diff(Time)))  # Calculate inter-arrival times
 interarrival_times2 <- na.omit(type2_data$Interarrival)
 
 #1) TYPE 1 PATIENTS
