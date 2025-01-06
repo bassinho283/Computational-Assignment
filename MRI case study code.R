@@ -293,3 +293,14 @@ hist(mc_sds_interarrivaltimes, probability = TRUE, col = 'seagreen3',
      main = 'Simulated standard deviations versus observed standard deviation of inter-arrival times for type II patients',
      xlab = 'Simulated standard deviations')
 abline(v = sd_arrival_times2, col = 'brown', lwd = 4)
+
+
+#Results of initial analysis (mean, sd, median, max, min)
+#TYPE1
+#Scan duration: mean = 0.4326608 - sd = 0.09777424 - min = 0.09373 - max = 0.70892 - median = 0.43589
+#Arrival times/patients per day: mean = 16.47826 - sd = 3.800354 - min = 10 - max = 23 - median = 16
+#Inter-arrival times: mean = 0.5453439 - sd = 0.5833021 - min = 0 - max  = 3.05 - median = 0.3750
+#TYPE2
+#Scan duration: mean = 0.6693389 - sd = 0.1872859 - min = 0.2207 - max = 1.1468 - median = 0.6466 
+#Arrival times/patients per day: mean = 10.3913 - sd = 1.233588 - min = 9 - max = 13 - median = 10 
+#Inter-arrival times: mean = 0.8666387 - sd = 0.310782 - min = 0.0600 - max  = 1.7500 - median = 0.8750
