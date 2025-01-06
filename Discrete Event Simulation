@@ -1,0 +1,380 @@
+#This part contains part II of our analysis on Optimizing scheduling policies
+#The goal is to test the difference between the old(patient-specialized machines) and the new(joint-patients machine) scheduling system
+#The performance is going to be compared by various indicators(specified below)
+
+#The performance measures that we are going to use are:
+#1: The difference in finishing time between the two machines - measures how much longer one machine works compared to the other in the two different schedules
+#2: The difference in number of patients serviced between the two machines - measures how evenly are the patients distributed between the two machines in the two different schedules
+#3: Total overtime under the schedule 
+#4: Pls help come up with the idea
+
+#Also need to come up with creative ideas for the indices but this can also be done in the report stage
+
+
+
+
+###### Input the data and manipulate it a bit (ngl, mostly stolen from Bas =) ########
+# The actual Analysis starts after that
+library(dplyr)
+library(MASS)
+
+ScanRecords <- read.csv("ScanRecords.csv")
+
+type1_data <- ScanRecords[ScanRecords$PatientType == "Type 1", ]
+daily_counts <- type1_data %>%
+  group_by(Date) %>%
+  summarise(Count = n())
+type2_data <- ScanRecords[ScanRecords$PatientType == "Type 2", ]
+daily_counts <- type2_data %>%
+  group_by(Date) %>%
+  summarise(Count = n())
+
+
+type1_data <- type1_data %>% arrange(Date, Time)  
+type1_data <- type1_data %>%
+  group_by(Date) %>%
+  mutate(Interarrival = c(NA, diff(Time))) 
+interarrival_times1 <- na.omit(type1_data$Interarrival)
+type2_data <- type2_data %>% arrange(Date, Time) 
+type2_data <- type2_data %>%
+  group_by(Date) %>%
+  mutate(Interarrival = c(NA, diff(Time))) 
+interarrival_times2 <- na.omit(type2_data$Interarrival)
+#####################################################################################################
+
+
+
+
+###########################################################################################
+###Part I: Average number of patients and Average scan duration
+##########################################################################################
+
+#For this part I will use the parameters that we identified for the data before(copied them from Bas's analysis)
+#Here we use an average scan duration, an average number of patient calls and an average call interrarrival time (for each patient type)
+mean_duration1 <- mean(type1_data$Duration)
+mean_duration2 <- mean(type2_data$Duration)
+mean_daily_arrivals1 <- round(mean(daily_counts1$Count)) #these should be rounded to integers (duhh)
+mean_daily_arrivals2 <- round(mean(daily_counts2$Count))
+mean_interarrival1 <- mean(interarrival_times1)
+mean_interarrival2 <- mean(interarrival_times2)
+
+#Generate the times the calls will arrive for each patient type and then make a joined list in increasing order
+call_times1 <- cbind(seq(from = 0, by = mean_interarrival1, length.out = mean_daily_arrivals1), 1) 
+call_times2 <- cbind(seq(from = 0, by = mean_interarrival2, length.out = mean_daily_arrivals2), 2) 
+call_times <- as.data.frame(rbind(call_times1,call_times2))
+colnames(call_times) <- c("time", "type")
+ordered_call_list <- call_times[order(call_times$time),]
+
+#Create variables that will store the schedule of patients for both old and new scheduling approach
+old_machine1_schedule <- data.frame(time = numeric(0), type = integer(0))
+old_machine2_schedule <- data.frame(time = numeric(0), type = integer(0))
+new_machine1_schedule <- data.frame(time = numeric(0), type = integer(0))
+new_machine2_schedule <- data.frame(time = numeric(0), type = integer(0))
+
+#Run the algorithm that produces the old schedule (each patient to their specific machine)
+available1 <- 0 #the time each machine becomes available(need it below)
+available2 <- 0
+for(i in 1:nrow(ordered_call_list)){
+  current_time <- ordered_call_list$time[i]
+  current_type <- ordered_call_list$type[i]
+  if(current_type == 1){
+    old_machine1_schedule <- rbind(old_machine1_schedule, data.frame(time = available1, type = 1))
+    available1 <- available1 + mean_duration1
+  } else {
+    old_machine2_schedule <- rbind(old_machine2_schedule, data.frame(time = available2, type = 2))
+    available2 <- available2 + mean_duration2
+  }
+}
+finish_time_old1 <- available1
+finish_time_old2 <- available2
+
+print(old_machine1_schedule)
+print(old_machine2_schedule)
+cat(finish_time_old1)
+cat(finish_time_old2)
+
+#Run the algorithm that produces the new schedule (both types to both machines)
+available1 <- 0 
+available2 <- 0
+for(i in 1:nrow(ordered_call_list)){
+  current_time <- ordered_call_list$time[i]
+  current_type <- ordered_call_list$type[i]
+  if(available1 <= available2){
+    new_machine1_schedule <- rbind(new_machine1_schedule, data.frame(time = available1, type = current_type))
+    if(current_type == 1){
+      available1 <- available1 + mean_duration1  
+    } else{
+      available1 <- available1 + mean_duration2
+    }
+  } else {
+    new_machine2_schedule <- rbind(new_machine2_schedule, data.frame(time = available2, type = current_type))
+    if(current_type == 1){
+      available2 <- available2 + mean_duration1  
+    } else{
+      available2 <- available2 + mean_duration2
+    }
+  }
+}
+finish_time_new1 <- available1
+finish_time_new2 <- available2
+
+print(new_machine1_schedule)
+print(new_machine2_schedule)
+cat(finish_time_new1)
+cat(finish_time_new2)
+
+
+#Lets create a little visualization to the two schedules
+library(ggplot2)
+
+#Creative graphic design with my idea and the code implementation of Chat GPT (don't tell anyone) :)
+
+#For OLD SCHEDULE
+seq1 <- as.numeric(old_machine1_schedule$type)
+seq2 <- as.numeric(old_machine2_schedule$type)
+lengths1 <- ifelse(seq1 == 1, mean_duration1, mean_duration2)
+lengths2 <- ifelse(seq2 == 1, mean_duration1, mean_duration2)
+
+data1 <- data.frame(
+  type = factor(seq1, levels = c(1, 2)),  length = lengths1,  
+  position = cumsum(c(0, lengths1[-length(lengths1)])),  sequence = "Machine 1"
+)
+data2 <- data.frame(
+  type = factor(seq2, levels = c(1, 2)),  length = lengths2,
+  position = cumsum(c(0, lengths2[-length(lengths2)])),  sequence = "Machine 2"
+)
+data <- rbind(data1, data2)
+data$sequence_numeric <- ifelse(data$sequence == "Machine 1", 1.2, 1.8)
+separator_data <- data.frame(position = data$position + data$length,
+  sequence_numeric = data$sequence_numeric, separator = 1 
+)
+
+
+ggplot() +
+  geom_rect(data = data, aes(xmin = position, xmax = position + length, ymin = sequence_numeric - 0.1, ymax = sequence_numeric + 0.1, fill = type), color = "black") +
+  scale_fill_manual(values = c("red", "blue")) +
+  labs(x = "Working Hour", y = NULL, title = "The Old schedule of the two machines") +
+  theme_minimal() +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), panel.grid = element_blank()) +
+  geom_segment(data = separator_data, aes(x = position, xend = position, y = sequence_numeric - 0.1, yend = sequence_numeric + 0.1), 
+               color = "black", size = 1) +
+  annotate("text", x = max(data$position) - 0.5, y = 1.4, label = "Machine 1", size = 5, color = "red") +
+  annotate("text", x = max(data$position) - 0.5, y = 1.6, label = "Machine 2", size = 5, color = "blue") +
+  scale_x_continuous(breaks = seq(0, max(data$position) + max(data$length), by = 0.5))  # Adjust the `by` parameter to set the spacing
+
+#For NEW SCHEDULE
+seq1 <- as.numeric(new_machine1_schedule$type)
+seq2 <- as.numeric(new_machine2_schedule$type)
+lengths1 <- ifelse(seq1 == 1, mean_duration1, mean_duration2)
+lengths2 <- ifelse(seq2 == 1, mean_duration1, mean_duration2)
+
+data1 <- data.frame(
+  type = factor(seq1, levels = c(1, 2)),  length = lengths1,  
+  position = cumsum(c(0, lengths1[-length(lengths1)])),  sequence = "Machine 1"
+)
+data2 <- data.frame(
+  type = factor(seq2, levels = c(1, 2)),  length = lengths2,
+  position = cumsum(c(0, lengths2[-length(lengths2)])),  sequence = "Machine 2"
+)
+data <- rbind(data1, data2)
+data$sequence_numeric <- ifelse(data$sequence == "Machine 1", 1.2, 1.8)
+separator_data <- data.frame(position = data$position + data$length,
+                             sequence_numeric = data$sequence_numeric, separator = 1 
+)
+
+ggplot() +
+  geom_rect(data = data, aes(xmin = position, xmax = position + length, ymin = sequence_numeric - 0.1, ymax = sequence_numeric + 0.1, fill = type), color = "black") +
+  scale_fill_manual(values = c("red", "blue")) +
+  labs(x = "Working Hour", y = NULL, title = "The New schedule of the two machines") +
+  theme_minimal() +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), panel.grid = element_blank()) +
+  geom_segment(data = separator_data, aes(x = position, xend = position, y = sequence_numeric - 0.1, yend = sequence_numeric + 0.1), 
+               color = "black", size = 1) +
+  annotate("text", x = max(data$position) - 0.5, y = 1.4, label = "Machine 1", size = 5, color = "red") +
+  annotate("text", x = max(data$position) - 0.5, y = 1.6, label = "Machine 2", size = 5, color = "blue") +
+  scale_x_continuous(breaks = seq(0, max(data$position) + max(data$length), by = 0.5))  # Adjust the `by` parameter to set the spacing
+
+
+
+#Compare the performance of the two schedules
+diff_finish_time_old = abs(finish_time_old1- finish_time_old2 )
+diff_finish_time_new = abs(finish_time_new1- finish_time_new2 )
+cat("The difference in finish time between machines in old schedule is ", diff_finish_time_old )
+cat("The difference in finish time between machines in new schedule is ", diff_finish_time_new )
+diff_number_patients_old = abs(nrow(old_machine1_schedule) - nrow(old_machine2_schedule))
+diff_number_patients_new = abs(nrow(new_machine1_schedule) - nrow(new_machine2_schedule))
+cat("The difference in number of patients between machines assigned in old schedules is", diff_number_patients_old)
+cat("The difference in number of patients between machines assigned in new schedules is", diff_number_patients_new)
+overtime_old = (max(0, (finish_time_old1 - 9)) + max(0, (finish_time_old2- 9)))
+overtime_new = max(0, (finish_time_new1- 9)) + max(0, (finish_time_new2- 9))
+cat("The overtime of the old schedule is", overtime_old)
+cat("The overtime of the new schedule is", overtime_new)
+
+
+#######################################################################
+###Part II: Variate number of patients and Average scan duration
+##############################################################################
+
+#Obviously the scenario above is only one "average" simulation, so it may not reflect the reality of the situation
+#Therefore in this part we will use average scan durations, 
+#but we will generate an arbitrary number of patient calls of each type and arbitrary call interarrival times
+#We will do that for a large number N of simulations, collect and then compare our metrics and therefore the performance of the scheduling approaches
+
+
+set.seed(123) #for reproductibility
+
+
+N <- 1000 #the number of simulations we will produce
+
+#create these arrays to collect all the metrics
+diff_finish_time_old <- numeric(N)
+diff_finish_time_new <- numeric(N)
+diff_number_patients_old <- numeric(N)
+diff_number_patients_new <- numeric(N)
+overtime_old <- numeric(N)
+overtime_new <- numeric(N)
+
+
+for(j in 1:N){
+ 
+  mean_daily_arrivals1 <- rpois(1, lambda = mean(daily_counts1$Count))
+  mean_daily_arrivals2 <- sample(daily_arrivals2, size = 1)
+  
+  times_interarrival1 <- rexp(mean_daily_arrivals1, rate = (1 / mean(interarrival_times1)))
+  times_interarrival2 <- sample(interarrival_times2, size = mean_daily_arrivals2, replace = TRUE)
+  
+  #Generate the times the calls will arrive for each patient type and then make a joined list in increasing order
+  call_times1 <- cbind(cumsum(times_interarrival1), 1) 
+  call_times2 <- cbind(cumsum(times_interarrival2), 2) 
+  call_times <- as.data.frame(rbind(call_times1,call_times2))
+  colnames(call_times) <- c("time", "type")
+  ordered_call_list <- call_times[order(call_times$time),]
+  
+  #Create variables that will store the schedule of patients for both old and new scheduling approach
+  old_machine1_schedule <- data.frame(time = numeric(0), type = integer(0))
+  old_machine2_schedule <- data.frame(time = numeric(0), type = integer(0))
+  new_machine1_schedule <- data.frame(time = numeric(0), type = integer(0))
+  new_machine2_schedule <- data.frame(time = numeric(0), type = integer(0))
+  
+  #Run the algorithm that produces the old schedule (each patient to their specific machine)
+  available1 <- 0 #the time each machine becomes available(need it below)
+  available2 <- 0
+  for(i in 1:nrow(ordered_call_list)){
+    current_time <- ordered_call_list$time[i]
+    current_type <- ordered_call_list$type[i]
+    if(current_type == 1){
+      old_machine1_schedule <- rbind(old_machine1_schedule, data.frame(time = available1, type = 1))
+      available1 <- available1 + mean_duration1
+    } else {
+      old_machine2_schedule <- rbind(old_machine2_schedule, data.frame(time = available2, type = 2))
+      available2 <- available2 + mean_duration2
+    }
+  }
+  finish_time_old1 <- available1
+  finish_time_old2 <- available2
+  
+  
+  #Run the algorithm that produces the new schedule (both types to both machines)
+  available1 <- 0 
+  available2 <- 0
+  for(i in 1:nrow(ordered_call_list)){
+    current_time <- ordered_call_list$time[i]
+    current_type <- ordered_call_list$type[i]
+    if(available1 <= available2){
+      new_machine1_schedule <- rbind(new_machine1_schedule, data.frame(time = available1, type = current_type))
+      if(current_type == 1){
+        available1 <- available1 + mean_duration1  
+      } else{
+        available1 <- available1 + mean_duration2
+      }
+    } else {
+      new_machine2_schedule <- rbind(new_machine2_schedule, data.frame(time = available2, type = current_type))
+      if(current_type == 1){
+        available2 <- available2 + mean_duration1  
+      } else{
+        available2 <- available2 + mean_duration2
+      }
+    }
+  }
+  finish_time_new1 <- available1
+  finish_time_new2 <- available2
+
+  
+  #Compare the performance of the two schedules
+  diff_finish_time_old[j] <- abs(finish_time_old1- finish_time_old2 )
+  diff_finish_time_new[j] = abs(finish_time_new1- finish_time_new2 )
+
+  diff_number_patients_old[j] <- abs(nrow(old_machine1_schedule) - nrow(old_machine2_schedule))
+  diff_number_patients_new[j] <- abs(nrow(new_machine1_schedule) - nrow(new_machine2_schedule))
+  
+  overtime_old[j] = (max(0, (finish_time_old1 - 9)) + max(0, (finish_time_old2- 9)))
+  overtime_new[j] = max(0, (finish_time_new1- 9)) + max(0, (finish_time_new2- 9))
+  
+  
+}
+
+
+#VISUALISATION OF THE RESULTS
+
+
+#For difference in finish time
+data <- data.frame(
+  x = rep(1:length(diff_finish_time_old), 2),  # Repeated x values for both sequences
+  y = c(diff_finish_time_old, diff_finish_time_new),      # Combine both sequences into one vector for y values
+  sequence = rep(c("Old Schedule", "New Schedule"), each = length(diff_number_patients_old))  # Create a sequence label
+)
+ggplot(data, aes(x = x, y = y, color = sequence)) +
+  geom_point() +  # Add points
+  geom_line() +   # Add lines connecting points
+  scale_color_manual(values = c("red", "blue")) +  # Custom colors for sequences
+  labs(title = "Difference in finishing time between the the machines in the 2 schedules ", x = "Simulation", y = "Value") +  
+  theme_minimal()  
+
+
+#For patient number difference
+data <- data.frame(
+  x = rep(1:length(diff_number_patients_old), 2),  # Repeated x values for both sequences
+  y = c(diff_number_patients_old, diff_number_patients_new),      # Combine both sequences into one vector for y values
+  sequence = rep(c("Old Schedule", "New Schedule"), each = length(diff_number_patients_old))  # Create a sequence label
+)
+ggplot(data, aes(x = x, y = y, color = sequence)) +
+  geom_point() +  # Add points
+  geom_line() +   # Add lines connecting points
+  scale_color_manual(values = c("red", "blue")) +  # Custom colors for sequences
+  labs(title = "Difference in number of patients per machine of the 2 schedules ", x = "Simulation", y = "Value") +  
+  theme_minimal()  
+
+
+#For Overtime
+data <- data.frame(
+  x = rep(1:length(overtime_old), 2),  # Repeated x values for both sequences
+  y = c(overtime_old, overtime_new),      # Combine both sequences into one vector for y values
+  sequence = rep(c("Old Schedule", "New Schedule"), each = length(overtime_old))  # Create a sequence label
+)
+ggplot(data, aes(x = x, y = y, color = sequence)) +
+  geom_point() +  # Add points
+  geom_line() +   # Add lines connecting points
+  scale_color_manual(values = c("red", "blue")) +  # Custom colors for sequences
+  labs(title = "Overtime of the 2 schedules ", x = "Simulation", y = "Value") +  
+  theme_minimal()  
+
+
+
+###############################################################################
+###Part III: Variate number of patients and variate scan duration
+###############################################################################
+
+# I will qupute from the assignment:
+#While it is okay if you for a large part disconnect the statistical part from the discrete event
+#study (you obviously need some input parameters, but you could treat those as given), things
+#get really interesting if you integrate the two parts. What role could the uncertainty about
+#your estimates play in the discrete event simulation? Could there perhaps still be any role for
+#the bootstrap in the second part?
+
+#So I sort of have included the uncertainty part for number of calls and the times between calls in the second part
+#And the ideas used in the bootstrap simulation step pretty mucg the same as how I simulate the parameters for the part 2 simulations
+
+#So I was thinking is it possible to also add uncertainty to the scan duration?
+#What do you guys think about that?
+# I was thinking if Yes then by randomly adding or substracting 1,2 or 3 standard deviations from the scan duration every time a scan is generated. something like that
+
