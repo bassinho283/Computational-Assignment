@@ -152,8 +152,8 @@ for (i in 1:R) {
 }
 mean_scandurationbootstrap_ci_type2 <- quantile(bootstrap_means, probs = c(0.025, 0.975))
 sd_scandurationbootstrap_ci_type2 <- quantile(bootstrap_sds, probs = c(0.025, 0.975))
-cat('Mean of the resample with a 95% CI - type II:', mean_bootstrap_ci_type2, '\n')
-cat('Standard deviation of the resample with a 95% CI - type II:', sd_bootstrap_ci_type2, '\n')
+cat('Mean of the resample with a 95% CI - type II:', mean_scandurationbootstrap_ci_type2, '\n')
+cat('Standard deviation of the resample with a 95% CI - type II:', sd_scandurationbootstrap_ci_type2, '\n')
 
 
 #Arrival times - type II patients
@@ -218,7 +218,7 @@ sd_scanduration_type2 <- sd(data_type2$Duration)
 cat('The observed standard deviation of the scan duration for type II patients:', sd_scanduration_type2, '\n')
 set.seed(123)
 n <- length(data_type2$Duration)
-R <- 5000
+R <- 100000
 mc_means_scandurations <- numeric(R)
 mc_sds_scandurations <- numeric(R)
 for (i in 1:R) {
@@ -226,6 +226,10 @@ for (i in 1:R) {
   mc_means_scandurations[i] <- mean(mc_scandurations)
   mc_sds_scandurations[i] <- sd(mc_scandurations)
 }
+mean_mc_scandurations_ci <- quantile(mc_means_scandurations, probs = c(0.025, 0.975))
+sd_mc_scandurations_ci <- quantile(mc_sds_scandurations, probs = c(0.025, 0.975))
+cat('95% CI for Monte Carlo means (scan durations):', mean_mc_scandurations_ci, '\n')
+cat('95% CI for Monte Carlo standard deviations (scan durations):', sd_mc_scandurations_ci, '\n')
 
 #Histogram for simulated means
 hist(mc_means_scandurations, probability = TRUE, col = 'salmon2',
@@ -246,7 +250,7 @@ sd_patients_per_day_2 <- sd(patients_per_day_2)
 
 set.seed(123)
 n <- length(patients_per_day_2)
-R <- 5000
+R <- 100000
 mc_means_patientsperday <- numeric(R)
 mc_sds_patientsperday <- numeric(R)
 for (i in 1:R) {
@@ -254,6 +258,10 @@ for (i in 1:R) {
   mc_means_patientsperday[i] <- mean(mc_patientsperday)
   mc_sds_patientsperday[i] <- sd(mc_patientsperday)
 }
+mean_mc_patientsperday_ci <- quantile(mc_means_patientsperday, probs = c(0.025, 0.975))
+sd_mc_patientsperday_ci <- quantile(mc_sds_patientsperday, probs = c(0.025, 0.975))
+cat('95% CI for Monte Carlo means (arrival times):', mean_mc_patientsperday_ci, '\n')
+cat('95% CI for Monte Carlo standard deviations (arrival times):', sd_mc_patientsperday_ci, '\n')
 
 #Histogram for simulated means
 hist(mc_means_patientsperday, probability = TRUE, col = 'wheat',
@@ -273,7 +281,7 @@ sd_arrival_times2 <- sd(arrival_times2)
 
 set.seed(123)
 n <- length(arrival_times2)
-R <- 5000  
+R <- 100000  
 mc_means_interarrivaltimes <- numeric(R)
 mc_sds_interarrivaltimes <- numeric(R)
 for (i in 1:R) {
@@ -281,12 +289,17 @@ for (i in 1:R) {
   mc_means_interarrivaltimes[i] <- mean(mc_interarrivaltimes)
   mc_sds_interarrivaltimes[i] <- sd(mc_interarrivaltimes)
 }
+mean_mc_interarrivaltimes_ci <- quantile(mc_means_interarrivaltimes, probs = c(0.025, 0.975))
+sd_mc_interarrivaltimes_ci <- quantile(mc_sds_interarrivaltimes, probs = c(0.025, 0.975))
+cat('95% CI for Monte Carlo means (inter-arrival times):', mean_mc_interarrivaltimes_ci, '\n')
+cat('95% CI for Monte Carlo standard deviations (inter-arrival times):', sd_mc_interarrivaltimes_ci, '\n')
 
 #Histogram for simulated means
 hist(mc_means_interarrivaltimes, probability = TRUE, col = 'cornflowerblue',
      main = 'Simulated means versus observed means of inter-arrival times for type II patients',
      xlab = 'Simulated means')
 abline(v = mean_arrival_times2, col = 'saddlebrown', lwd = 4)
+
 
 #Histogram for simulated standard deviations
 hist(mc_sds_interarrivaltimes, probability = TRUE, col = 'seagreen3',
