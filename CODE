@@ -1,7 +1,6 @@
 # Computational Assignment 10/01/2025
-# Bas Knoors (i6297276), Valentin Suruceanu, 
+# Bas Knoors, Valentin Suruceanu, 
 # Julie van Breukelen, Szymon Nieckula
-
 
 library(dplyr)
 library(MASS)
@@ -10,194 +9,10 @@ library(MASS)
 #PART 1: Statistical Analysis of the Data
 #-------------------------------------------------------------------------------
 
-#PLAYING AROUND WITH DATA-------------------------------------------------------
-
 #All series can be treated as independent and identically distributed
 #Filter data
 type1_data <- ScanRecords[ScanRecords$PatientType == "Type 1", ]
 type2_data <- ScanRecords[ScanRecords$PatientType == "Type 2", ]
-
-#DURATION------------------------------------------------------
-
-#TYPE 1
-#Histogram for Type 1 patients
-hist(type1_data$Duration, 
-     main = "Histogram of MRI Duration for Type 1 Patients", 
-     xlab = "Duration (hours)", 
-     col = "lightblue", 
-     breaks = 20)
-
-# --> Looks like Normal Distribution(parameters unknown)
-
-#Overlaying a Normal distribution CDF over Histogram by using mean and st dev.
-mean_duration1 <- mean(type1_data$Duration)
-sd_duration1 <- sd(type1_data$Duration)
-
-# Overlay normal distribution curve
-hist(type1_data$Duration, probability = TRUE, 
-     main = "Histogram with Normal Fit", 
-     xlab = "Duration (hours)", col = "lightgreen")
-curve(dnorm(x, mean = mean_duration1, sd = sd_duration1), 
-      col = "blue", lwd = 2, add = TRUE)
-
-
-#TYPE 2
-#Histogram for Type 2 patients
-hist(type2_data$Duration, 
-     main = "Histogram of MRI Duration for Type 2 Patients", 
-     xlab = "Duration (hours)", 
-     col = "lightgreen", 
-     breaks = 20)
-
-# --> Do not really know what kind of distribution this resembles: Normal/ Logistic?
-
-#Overlaying a Normal/Logistic CDF over Histogram by using mean and st dev.
-mean_duration2 <- mean(type2_data$Duration)
-mean_duration2
-sd_duration2 <- sd(type2_data$Duration)
-sd_duration2
-
-# Plot normalized histogram (Express density i.o. frequency)
-hist(type2_data$Duration, probability = TRUE, 
-     main = "Histogram with Normal and Logistic Fits", 
-     xlab = "Duration (hours)", 
-     col = "lightgreen", 
-     breaks = 20)
-
-# Overlay Normal distribution curve
-curve(dnorm(x, mean = mean_duration2, sd = sd_duration2), 
-      col = "blue", lwd = 2, add = TRUE)
-
-# Overlay Logistic distribution curve
-curve(dlogis(x, location = mean_duration2, scale = sd_duration2 / sqrt(3)), 
-      col = "red", lwd = 2, add = TRUE)
-
-# Add a legend for clarity
-legend("topright", legend = c("Normal Fit", "Logistic Fit"), 
-       col = c("blue", "red"), lwd = 2)
-
-
-
-#Box-plot of Duration per patient type
-boxplot(Duration ~ PatientType, data = ScanRecords, 
-        main = "Scan Duration by Patient Type", 
-        xlab = "Patient Type", ylab = "Duration", col = "lightgreen")
-
-
-#NUMBER OF PATIENTS ARRIVING---------------------------------------
-
-#TYPE 1
-
-#ARRIVAL TIMES
-
-# Calculate daily arrival counts for Type 1
-type1_data <- ScanRecords[ScanRecords$PatientType == "Type 1", ]
-daily_counts <- type1_data %>%
-  group_by(Date) %>%
-  summarise(Count = n())
-
-# Estimate the Poisson parameter (mean number of arrivals per day)
-lambda <- mean(daily_counts$Count)
-
-# Plot histogram of daily arrivals (as counts)
-hist(daily_counts$Count, probability = TRUE, 
-     main = "Daily Arrival Counts (Type 1) with Poisson Fit", 
-     xlab = "Number of Arrivals", 
-     col = "lightblue", 
-     breaks = max(daily_counts$Count) - min(daily_counts$Count) + 1)
-
-# Overlay Poisson distribution curve
-x_vals <- seq(0, max(daily_counts$Count), by = 1)  # Possible arrival counts
-pois_probs <- dpois(x_vals, lambda = lambda)  # Poisson probabilities
-points(x_vals, pois_probs, col = "red", type = "h", lwd = 2)  # Add as lines
-
-#INTER-ARRIVAL TIMES
-
-# Sort and calculate inter-arrival times for Type 1
-type1_data <- type1_data %>% arrange(Date, Time)
-type1_data <- type1_data %>%
-  group_by(Date) %>%
-  mutate(Interarrival = c(NA, diff(Time)))  # Calculate inter-arrival times
-
-# Remove NA values
-interarrival_times <- na.omit(type1_data$Interarrival)
-
-# Estimate the rate parameter (lambda) for the exponential distribution
-lambda_exp <- 1 / mean(interarrival_times)  # Rate = 1 / mean of inter-arrival times
-
-# Plot histogram of inter-arrival times (as density)
-hist(interarrival_times, probability = TRUE, 
-     main = "Inter-arrival Times (Type 1) with Exponential Fit", 
-     xlab = "Time Between Arrivals (hours)", 
-     col = "lightgreen", 
-     breaks = 20)
-
-# Overlay Exponential distribution curve
-curve(dexp(x, rate = lambda_exp), col = "blue", lwd = 2, add = TRUE)
-
-#TYPE 2
-
-#ARRIVAL TIMES
-
-# Calculate daily arrival counts for Type 2 patients
-type2_data <- ScanRecords[ScanRecords$PatientType == "Type 2", ]
-daily_counts <- type2_data %>%
-  group_by(Date) %>%
-  summarise(Count = n())
-
-# Estimate the Poisson parameter (mean number of arrivals per day)
-lambda2 <- mean(daily_counts$Count)
-
-# Plot histogram of daily arrivals (scaled as density for comparison)
-hist(daily_counts$Count, probability = TRUE, 
-     main = "Daily Arrival Counts (Type 2) ", 
-     xlab = "Number of Arrivals", 
-     col = "lightblue", 
-     breaks = max(daily_counts$Count) - min(daily_counts$Count) + 1)
-
-# Overlay Poisson distribution curve
-x_vals <- seq(0, max(daily_counts$Count), by = 1)  # Possible arrival counts
-pois_probs <- dpois(x_vals, lambda = lambda2)  # Poisson probabilities
-points(x_vals, pois_probs, col = "red", type = "h", lwd = 2)  # Add as lines
-
-#INTER-ARRIVAL TIMES
-
-# Sort and calculate inter-arrival times for Type 2
-type2_data <- type2_data %>% arrange(Date, Time)
-type2_data <- type2_data %>%
-  group_by(Date) %>%
-  mutate(Interarrival = c(NA, diff(Time)))  # Calculate inter-arrival times
-
-# Remove NA values
-interarrival_times <- na.omit(type2_data$Interarrival)
-
-# Estimate parameters for Normal distribution
-mean_interarrival <- mean(interarrival_times)
-sd_interarrival <- sd(interarrival_times)
-
-# Estimate parameters for Gamma distribution
-gamma_fit <- fitdistr(interarrival_times, densfun = "gamma")  # Fit gamma distribution
-shape <- gamma_fit$estimate["shape"]  # Gamma shape parameter
-rate <- gamma_fit$estimate["rate"]    # Gamma rate parameter
-
-# Plot histogram of inter-arrival times (as density)
-hist(interarrival_times, probability = TRUE, 
-     main = "Inter-arrival Times (Type 2) with Normal and Gamma Fits", 
-     xlab = "Time Between Arrivals (hours)", 
-     col = "lightgreen", 
-     breaks = 20)
-
-# Overlay Normal distribution curve
-curve(dnorm(x, mean = mean_interarrival, sd = sd_interarrival), 
-      col = "blue", lwd = 2, add = TRUE)
-
-# Overlay Gamma distribution curve
-curve(dgamma(x, shape = shape, rate = rate), 
-      col = "red", lwd = 2, add = TRUE)
-
-# Add a legend
-legend("topright", legend = c("Normal Fit", "Gamma Fit"), 
-       col = c("blue", "red"), lwd = 2)
 
 
 #PARAMETER ESTIMATION WITH UNCERTAINTY USING BOOTSTRAP--------------------------
@@ -222,7 +37,7 @@ type1_data <- type1_data %>%
 # Correcting a specific inter-arrival time in Type 1
 type1_data$Interarrival[20] <- 0.02  
 type1_data$Interarrival[32] <- 0.57 
-type1_data$Interarrival[49] <- 0.86  
+type1_data$Interarrival[49] <- 1.86  
 type1_data$Interarrival[65] <- 0.84  
 type1_data$Interarrival[86] <- 0.62  
 type1_data$Interarrival[99] <- 0.85  
@@ -318,7 +133,7 @@ cat("Bootstrap SD Estimate (95% CI):", sd_ci, "\n")
 
 # VISUALIZATION
 # Histogram for bootstrap means
-hist(bootstrap_means, main = "Bootstrap Distribution of Means", 
+hist(bootstrap_means, main = "Bootstrap Distribution of Mean MRI Duration", 
      xlab = "Mean Duration", col = "lightblue", breaks = 20)
 abline(v = mean_duration1, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
 abline(v = mean_ci, col = "red", lwd = 2, lty = 2)             # CI lines (both sides)
@@ -463,7 +278,7 @@ cat("95% Confidence Interval for Mean:", mean_ci, "\n")
 cat("95% Confidence Interval for Standard Deviation:", sd_ci, "\n")
 
 # VISUALIZATION: Plot bootstrap means
-hist(bootstrap_means, main = "Bootstrap Distribution of Means (Type 2)", 
+hist(bootstrap_means, main = "Bootstrap Distribution of Mean MRI Duration (Type 2)", 
      xlab = "Mean Duration", col = "lightblue", breaks = 20)
 abline(v = mean_duration2, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
 abline(v = mean_ci[1], col = "red", lwd = 2, lty = 2)           # CI lower bound
@@ -472,7 +287,7 @@ legend("topright", legend = c("Point Estimate", "95% CI"),
        col = c("darkblue", "red"), lwd = 2, lty = c(1, 2), cex = 0.8)
 
 # VISUALIZATION: Plot bootstrap standard deviations
-hist(bootstrap_sds, main = "Bootstrap Distribution of SDs (Type 2)", 
+hist(bootstrap_sds, main = "Bootstrap Distribution of SDs MRI Duration (Type 2)", 
      xlab = "Standard Deviation", col = "lightgreen", breaks = 20)
 abline(v = sd_duration2, col = "darkblue", lwd = 2, lty = 1)  # Point estimate
 abline(v = sd_ci[1], col = "red", lwd = 2, lty = 2)           # CI lower bound
@@ -589,7 +404,6 @@ legend("topright", legend = c("Point Estimate", "95% CI"),
 
 
 
-
 #MONTE CARLO SIMULATION TO BACK UP RESULTS OF TYPE 2 PATIENTS-------------------
 
 #1) DURATION
@@ -702,3 +516,4 @@ abline(v = mean_ci, col = "red", lty = 2)  # CI bounds
 hist(mc_sds, main = "MC Distribution of SDs (Type 2 Inter-Arrival Times)", 
      xlab = "Standard Deviation", col = "lightgreen", breaks = 20)
 abline(v = sd_ci, col = "red", lty = 2)  # CI bounds
+
