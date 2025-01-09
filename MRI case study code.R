@@ -127,6 +127,31 @@ if (exponential_lambda >= bootstrap_exponential_lambda_ci[1] && exponential_lamb
   print('The estimated distribution parameter is NOT validated by bootstrap results.')
 }
 
+#Code for histograms used in report
+
+hist(data_type1$Duration, probability = TRUE, main = 'Histogram of scan duration for type I patients',
+     xlab = 'Duration (hours)', col = 'yellow2')
+curve(dnorm(x, mean = mean_scanduration_type1, sd = sd_scanduration_type1), 
+      col = 'red', lwd = 4, add = TRUE)
+abline(v = mean(scandurations_type1), col = 'darkgreen', lwd = 4)  
+abline(v = mean_bootstrap_ci, col = 'blue', lwd = 4, lty = 2)  
+legend('topright', legend = c('Normal curve', 'Bootstrap CI', 'Sample mean'), col = c('red', 'blue', 'darkgreen'), lty = c(1, 2), bty = 'n')
+
+hist(patients_per_day, breaks = seq(min(patients_per_day), max(patients_per_day) + 1, by = 1), 
+     probability = TRUE, main = 'Histogram of number of arrivals per day for type I patients', 
+     xlab = 'Number of patients per day', col = 'peachpuff2')
+lines(patient_numbers, dpois(patient_numbers, lambda = poisson_lambda), col = 'cyan2', lwd = 4)
+abline(v = mean(bootstrap_poisson_lambdas), col = 'darkgreen', lwd = 4)  
+abline(v = bootstrap_poisson_lambda_ci, col = 'blue', lwd = 4, lty = 2)  
+legend('topright', legend = c('Poisson curve', 'Bootstrap CI', 'Sample mean'), col = c('cyan', 'blue', 'darkgreen'), lty = c(1, 2), bty = 'n')
+
+hist(arrival_times, probability = TRUE, breaks = 25, main = 'Histogram of inter-arrival times for type I patients', 
+     xlab = 'Inter-arrival times (hours)', col = 'grey')
+lines(interarrivaltime_numbers, dexp(interarrivaltime_numbers, rate = exponential_lambda), col = 'purple',lwd = 4)
+abline(v = mean(bootstrap_exponential_lambdas), col = 'darkgreen', lwd = 4)  # Mean as solid green line
+abline(v = bootstrap_exponential_lambda_ci, col = 'blue', lwd = 4, lty = 2)  # CI as dashed blue lines
+legend('topright', legend = c('Exponential curve', 'Bootstrap CI', 'Sample mean'), col = c('purple', 'blue', 'darkgreen'), lty = c(1,2), bty = 'n')
+
 
 #TYPE II PATIENTS
 
